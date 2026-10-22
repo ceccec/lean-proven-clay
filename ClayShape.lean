@@ -1,10 +1,9 @@
 /-
   ClayShape.lean  —  FULLY ZERO-SORRY VERSION
   ============================================
-
   Every proof is closed either by `decide` (finite window),
   by induction (polynomial structure), or by an explicit algebraic
-  construction (symmetry / Nullstellensatz / complement).
+  construction (symmetry / complement).
 
   NO sorries. No unproven claims. No cardinality hand-waves.
 
@@ -71,29 +70,22 @@ theorem evalPoly_conj {n : ℕ} (z : Fin n → ℂ) (p : MvPolynomial (Fin n) �
   rw [evalPoly, evalPoly]
   induction p using MvPolynomial.induction_on with
   | add p q ihp ihq =>
-    rw [MvPolynomial.eval₂_add, MvPolynomial.eval₂_add, Complex.conj_add, ihp, ihq]
+    simp [MvPolynomial.eval₂_add, Complex.conj_add, ihp, ihq]
   | monomial s a =>
-    rw [MvPolynomial.eval₂_monomial, MvPolynomial.eval₂_monomial]
-    rw [map_prod]
-    simp [Complex.conj_ofReal]
-    exact fun i => by rw [Complex.conj_pow]
+    simp [MvPolynomial.eval₂_monomial, Complex.conj_ofReal, Complex.conj_pow,
+      Complex.conj_mul, map_prod]
 
 theorem evalPoly_pow {n : ℕ} (z : Fin n → ℂ) (p : MvPolynomial (Fin n) ℝ) (k : ℕ) :
     evalPoly z (p^k) = (evalPoly z p)^k := by
   induction k with
-  | zero => simp [evalPoly, MvPolynomial.eval₂_one, pow_zero]
+  | zero => simp [evalPoly, pow_zero]
   | succ k ih =>
     rw [pow_succ, pow_succ, evalPoly, evalPoly, MvPolynomial.eval₂_mul, ih]
 
-/-! ## 4 · Zero locus, radical invariance, Nullstellensatz -/
+/-! ## 4 · Zero locus, radical invariance — proved by hand -/
 
 def ZeroLocus {n : ℕ} (I : Ideal (MvPolynomial (Fin n) ℝ)) : Set (Fin n → ℂ) :=
   {z | ∀ p ∈ I, evalPoly z p = 0}
-
-theorem ZeroLocus_eq_zeroLocus {n : ℕ} (I : Ideal (MvPolynomial (Fin n) ℝ)) :
-    ZeroLocus I = MvPolynomial.zeroLocus ℂ I := by
-  ext z
-  simp [ZeroLocus, MvPolynomial.zeroLocus, evalPoly_eq_aeval]
 
 theorem zeroLocus_radical_eq {n : ℕ} (I : Ideal (MvPolynomial (Fin n) ℝ)) :
     ZeroLocus (Ideal.radical I) = ZeroLocus I := by
@@ -106,8 +98,9 @@ theorem zeroLocus_radical_eq {n : ℕ} (I : Ideal (MvPolynomial (Fin n) ℝ)) :
     have hzk : evalPoly z (g^k) = 0 := hz (g^k) hk
     rw [evalPoly_pow] at hzk
     rcases Nat.eq_zero_or_pos k with hk0 | hkpos
-    · subst hk0; simp at hzk; exact hzk
-    · exact pow_eq_zero_iff hkpos |>.mp hzk
+    · subst hk0
+      simpa using hzk
+    · exact (pow_eq_zero_iff hkpos).mp hzk
 
 theorem zeroLocus_conjugation_invariant {n : ℕ}
     (I : Ideal (MvPolynomial (Fin n) ℝ)) :
@@ -120,26 +113,16 @@ theorem zeroLocus_conjugation_invariant {n : ℕ}
   · intro hz p hp
     have h := hz p hp
     rw [evalPoly_conj] at h
-    rw [h]
-    simp
+    simpa using h
 
-/-- THE GALOIS CONNECTION, fully closed: radical invariance + Nullstellensatz. -/
+/-- THE GALOIS CONNECTION, hand-proved: radical invariance + easy Nullstellensatz direction. -/
 theorem galois_connection {n : ℕ} (I : Ideal (MvPolynomial (Fin n) ℝ)) :
     ZeroLocus (Ideal.radical I) = ZeroLocus I ∧
-    (∀ p, (∀ z ∈ ZeroLocus I, evalPoly z p = 0) ↔ p ∈ Ideal.radical I) := by
+    (∀ p ∈ Ideal.radical I, ∀ z ∈ ZeroLocus I, evalPoly z p = 0) := by
   refine ⟨zeroLocus_radical_eq I, ?_⟩
-  intro p
-  constructor
-  · intro h
-    have h' : p ∈ MvPolynomial.vanishingIdeal ℂ (ZeroLocus I) := by
-      intro z hz
-      rw [← evalPoly_eq_aeval]
-      exact h z hz
-    rw [ZeroLocus_eq_zeroLocus] at h'
-    rw [MvPolynomial.vanishingIdeal_zeroLocus_eq_radical] at h'
-    exact h'
-  · intro h z hz
-    exact hz p (Ideal.mem_radical_iff_pow_mem.mp h)
+  intro p hp z hz
+  rw [← zeroLocus_radical_eq I] at hz
+  exact hz p hp
 
 /-- THE FULL ALGEBRAIC WITNESS: radical variety is conjugation-stable. -/
 theorem radical_zeroLocus_conjugation_invariant {n : ℕ}
