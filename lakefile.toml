@@ -1,0 +1,7 @@
+name = "clayshape"
+version = "0.1.0"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover"
+version = "v4.35.0"
